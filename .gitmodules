@@ -1,0 +1,6 @@
+[submodule "Backend_Agente_Inteligente"]
+path = Backend_Agente_Inteligente
+url = git@github.com:Alexander200318/Backend_Agente_Inteligente.git
+[submodule "FrontendCallCenterRN"]
+path = FrontendCallCenterRN
+url = git@github.com:JhonyMendez/FrontendCallCenterRN.git
