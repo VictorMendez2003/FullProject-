@@ -1,0 +1,34 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Backend FastAPI
+  - job_name: 'backend'
+    static_configs:
+      - targets: ['fastapi_backend:8000']
+        labels:
+          service: 'backend'
+          environment: 'production'
+  
+  # Frontend Expo
+  - job_name: 'frontend'
+    static_configs:
+      - targets: ['frontend_expo:3000']
+        labels:
+          service: 'frontend'
+          environment: 'production'
+  
+  # Docker containers
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          service: 'docker'
+  
+  # Node exporter (métricas del servidor)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node'

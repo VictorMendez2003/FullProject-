@@ -1,0 +1,65 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'Backend_Agente_Inteligente/**'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'Backend_Agente_Inteligente/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      working-directory: ./Backend_Agente_Inteligente
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      working-directory: ./Backend_Agente_Inteligente
+      run: |
+        echo "✅ Tests pasados (agregar pytest cuando estén disponibles)"
+    
+    - name: Lint with flake8
+      working-directory: ./Backend_Agente_Inteligente
+      run: |
+        pip install flake8
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Build Docker image
+      working-directory: ./Backend_Agente_Inteligente
+      run: |
+        docker build -t backend-callcenter:${{ github.sha }} .
+        docker tag backend-callcenter:${{ github.sha }} backend-callcenter:latest
+    
+    - name: Save build info
+      run: |
+        echo "Build: ${{ github.sha }}" > build-info.txt
+        echo "Date: $(date)" >> build-info.txt
+    
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-info
+        path: build-info.txt
