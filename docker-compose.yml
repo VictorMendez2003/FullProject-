@@ -64,6 +64,7 @@ services:
         condition: service_started
     volumes:
       - ./Backend_Agente_Inteligente/chroma_db:/app/chroma_db
+      - hf_cache:/root/.cache/huggingface
 
   frontend:
     build:
@@ -84,3 +85,4 @@ services:
 volumes:
   mysql_data:
   mongo_data:
+  hf_cache:
