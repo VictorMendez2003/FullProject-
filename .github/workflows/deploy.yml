@@ -3,23 +3,11 @@ name: Deploy to DigitalOcean
 on:
   push:
     branches: [ main, master ]
-    tags:
-      - 'v*'
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy'
-        required: true
-        default: 'production'
-        type: choice
-        options:
-          - production
-          - staging
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment: production
     
     steps:
     - name: Checkout code
@@ -36,67 +24,12 @@ jobs:
         go mod download
         go build -o bin/deploy ./cmd/deploy/main.go
         go build -o bin/healthcheck ./cmd/healthcheck/main.go
-        chmod +x bin/deploy bin/healthcheck
     
-    - name: Deploy to DigitalOcean
-      env:
-        DO_API_TOKEN: ${{ secrets.DO_API_TOKEN }}
-        DROPLET_ID: ${{ secrets.DROPLET_ID }}
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+    - name: Test build
       run: |
-        echo "🚀 Iniciando deployment a DigitalOcean..."
-        
-        # Configurar SSH
-        mkdir -p ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H 64.23.152.92 >> ~/.ssh/known_hosts
-        
-        # Copiar archivos al servidor
-        echo "📦 Copiando archivos..."
-        scp -r Backend_Agente_Inteligente root@64.23.152.92:/root/FullProject/
-        scp -r FrontendCallCenterRN root@64.23.152.92:/root/FullProject/
-        scp docker-compose.yml root@64.23.152.92:/root/FullProject/
-        
-        # Ejecutar deployment en el servidor
-        echo "🔄 Ejecutando deployment..."
-        ssh root@64.23.152.92 << 'ENDSSH'
-          cd /root/FullProject
-          
-          # Pull de cambios en repositorios
-          cd Backend_Agente_Inteligente && git pull origin main
-          cd ../FrontendCallCenterRN && git pull origin master
-          cd ..
-          
-          # Rebuild y restart de contenedores
-          docker-compose down
-          docker-compose build --no-cache
-          docker-compose up -d
-          
-          # Esperar a que los servicios inicien
-          echo "⏳ Esperando servicios..."
-          sleep 15
-          
-          # Verificar estado
-          docker-compose ps
-          docker logs fastapi_backend --tail 20
-ENDSSH
+        echo "✅ Go scripts compilados exitosamente"
+        ls -lh deployment/bin/
     
     - name: Health Check
       run: |
-        echo "🏥 Verificando health del backend..."
-        sleep 10
-        curl -f http://64.23.152.92:8000/health || exit 1
-        echo "✅ Deployment exitoso!"
-    
-    - name: Notify Success
-      if: success()
-      run: |
-        echo "✅ Deployment completado exitosamente"
-        echo "🌐 Backend: http://64.23.152.92:8000"
-        echo "📱 Frontend: http://64.23.152.92:3000"
-    
-    - name: Notify Failure
-      if: failure()
-      run: |
-        echo "❌ Deployment falló - revisar logs"
+        curl -f http://64.23.152.92:8000/health && echo "✅ Backend healthy"
