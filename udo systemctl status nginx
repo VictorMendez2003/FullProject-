@@ -1,0 +1,19 @@
+[0;1;32m●[0m nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/lib/systemd/system/nginx.service; enabled; vendor preset: enabled)
+     Active: [0;1;32mactive (running)[0m since Fri 2026-01-30 07:01:34 UTC; 8min ago
+       Docs: man:nginx(8)
+    Process: 210422 ExecStartPre=/usr/sbin/nginx -t -q -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+    Process: 210423 ExecStart=/usr/sbin/nginx -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+   Main PID: 210424 (nginx)
+      Tasks: 5 (limit: 19140)
+     Memory: 6.2M
+        CPU: 94ms
+     CGroup: /system.slice/nginx.service
+             ├─210424 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"
+             ├─210425 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+             ├─210426 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+             ├─210427 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+             └─210428 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+
+Jan 30 07:01:34 tecai-cloud systemd[1]: Starting A high performance web server and a reverse proxy server...
+Jan 30 07:01:34 tecai-cloud systemd[1]: Started A high performance web server and a reverse proxy server.
