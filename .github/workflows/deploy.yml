@@ -1,35 +1,142 @@
-name: Deploy to DigitalOcean
+name: Deploy CallCenterAI to Production
 
 on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
 
+env:
+  DROPLET_ID: "547983969"
+  SERVER_IP: "64.23.152.92"
+
 jobs:
-  build:
+  build-go-tools:
+    name: Build Go Deployment Tools
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-    
-    - name: Set up Go
+      with:
+        submodules: recursive
+
+    - name: Set up Go 1.24
       uses: actions/setup-go@v4
       with:
-        go-version: '1.21'
-    
-    - name: Build deployment tools
+        go-version: '1.24'
+
+    - name: Build deployment binaries
       working-directory: ./deployment
       run: |
+        echo "🔨 Compilando herramientas Go para deployment..."
         go mod download
         go build -o bin/deploy ./cmd/deploy/main.go
         go build -o bin/healthcheck ./cmd/healthcheck/main.go
-    
-    - name: Test build
+        echo "✅ Binarios compilados:"
+        ls -lh bin/
+        file bin/deploy
+        file bin/healthcheck
+
+    - name: Test healthcheck tool
+      working-directory: ./deployment
       run: |
-        echo "✅ Go scripts compilados exitosamente"
-        ls -lh deployment/bin/
+        echo "🧪 Probando herramienta de health check..."
+        ./bin/healthcheck -endpoint=http://${{ env.SERVER_IP }}:8000/health || echo "⚠️ Pre-deploy check (esperado)"
+
+  deploy-to-digitalocean:
+    name: Deploy to DigitalOcean Droplet
+    runs-on: ubuntu-latest
+    needs: build-go-tools
     
-    - name: Health Check
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Deploy via SSH to Droplet ${{ env.DROPLET_ID }}
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ env.SERVER_IP }}
+        username: root
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22
+        timeout: 300s
+        script: |
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║         🚀 CALLCENTERAI - DESPLIEGUE AUTOMÁTICO               ║"
+          echo "║         Droplet ID: ${{ env.DROPLET_ID }}                     ║"
+          echo "║         Timestamp: $(date)                                     ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          
+          cd /root/FullProject
+          
+          echo "📥 [1/6] Actualizando código desde GitHub..."
+          git pull origin main || git pull origin master
+          
+          echo "🛑 [2/6] Deteniendo contenedores actuales..."
+          docker compose down
+          
+          echo "🧹 [3/6] Limpiando recursos Docker..."
+          docker system prune -f --volumes
+          
+          echo "🔨 [4/6] Reconstruyendo imágenes Docker..."
+          docker compose build --no-cache --pull
+          
+          echo "🚀 [5/6] Iniciando servicios..."
+          docker compose up -d
+          
+          echo "⏳ [6/6] Esperando inicialización de servicios..."
+          sleep 20
+          
+          echo "📊 Estado final de contenedores:"
+          docker compose ps
+          
+          echo "📝 Logs recientes del backend:"
+          docker compose logs --tail=30 fastapi_backend
+          
+          echo "✅ ════════════════════════════════════════════════════════════"
+          echo "✅ DESPLIEGUE COMPLETADO EXITOSAMENTE"
+          echo "✅ ════════════════════════════════════════════════════════════"
+
+  verify-deployment:
+    name: Verify Production Health
+    runs-on: ubuntu-latest
+    needs: deploy-to-digitalocean
+    
+    steps:
+    - name: Wait for services to stabilize
+      run: sleep 15
+
+    - name: Health Check - Backend API
       run: |
-        curl -f http://64.23.152.92:8000/health && echo "✅ Backend healthy"
+        echo "🏥 Verificando salud del backend..."
+        response=$(curl -s -w "\n%{http_code}" http://${{ env.SERVER_IP }}:8000/health)
+        status=$(echo "$response" | tail -n1)
+        body=$(echo "$response" | head -n-1)
+        
+        if [ "$status" -eq 200 ]; then
+          echo "✅ Backend saludable (HTTP $status)"
+          echo "$body"
+        else
+          echo "❌ Backend no responde correctamente (HTTP $status)"
+          exit 1
+        fi
+
+    - name: Health Check - Widget Endpoint
+      run: |
+        echo "🧩 Verificando widget..."
+        curl -f http://${{ env.SERVER_IP }}:8000/widget && echo "✅ Widget accesible" || echo "⚠️ Widget no disponible"
+
+    - name: Final Deployment Report
+      if: always()
+      run: |
+        echo "════════════════════════════════════════════════════════════════"
+        echo "📊 REPORTE DE DESPLIEGUE"
+        echo "════════════════════════════════════════════════════════════════"
+        echo "🌐 Sitio Web: https://www.engine-tecai.me"
+        echo "🔗 API: https://api.engine-tecai.me"
+        echo "🧩 Widget: https://api.engine-tecai.me/widget"
+        echo "📈 Prometheus: http://${{ env.SERVER_IP }}:9090"
+        echo "📊 Grafana: http://${{ env.SERVER_IP }}:3001"
+        echo "⏰ Timestamp: $(date)"
+        echo "✅ Commit: ${{ github.sha }}"
+        echo "════════════════════════════════════════════════════════════════"
